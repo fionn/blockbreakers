@@ -3,7 +3,7 @@
 
 from functools import reduce
 
-from constants import SBOX_EN, RCON, X2, X3
+from constants import SBOX_EN, RCON, X2, X3, X9, X11, X13, X14
 from utilities import fixed_xor, state_to_matrix, matrix_to_state, \
                       transpose, to_bytes
 
@@ -61,12 +61,27 @@ class AES:
         return bytes(SBOX_EN[b] for b in data)
 
     @staticmethod
+    def sub_bytes_inverse(data: bytes) -> bytes:
+        """Invert the sbox"""
+        assert len(data) == 16
+        return bytes(SBOX_EN.index(b) for b in data)
+
+    @staticmethod
     def shift_rows(data: bytes) -> bytes:
         """ShiftRows transformation"""
         assert len(data) == 16
         matrix_t = transpose(state_to_matrix(data))
         for i in range(4):
             matrix_t[i] = AES.rot_word(matrix_t[i], i)
+        return matrix_to_state(transpose(matrix_t))
+
+    @staticmethod
+    def shift_rows_inverse(data: bytes) -> bytes:
+        """ShiftRows transformation"""
+        assert len(data) == 16
+        matrix_t = transpose(state_to_matrix(data))
+        for i in range(4):
+            matrix_t[i] = AES.rot_word(matrix_t[i], -1 * i)
         return matrix_to_state(transpose(matrix_t))
 
     # pylint: disable=invalid-name
@@ -81,6 +96,18 @@ class AES:
         ]
         return b"".join(result)
 
+    # pylint: disable=invalid-name
+    @staticmethod
+    def mix_column_inverse(a: bytes) -> bytes:
+        """Multiply the vector a by the inverse MixColumn matrix over GF(2^8)"""
+        result = [
+            reduce(fixed_xor, map(to_bytes, [X14[a[0]], X11[a[1]], X13[a[2]], X9[a[3]]])),
+            reduce(fixed_xor, map(to_bytes, [X9[a[0]], X14[a[1]], X11[a[2]], X13[a[3]]])),
+            reduce(fixed_xor, map(to_bytes, [X13[a[0]], X9[a[1]], X14[a[2]], X11[a[3]]])),
+            reduce(fixed_xor, map(to_bytes, [X11[a[0]], X13[a[1]], X9[a[2]], X14[a[3]]]))
+        ]
+        return b"".join(result)
+
     @staticmethod
     def mix_columns(data: bytes) -> bytes:
         """MixColumns transformation"""
@@ -88,6 +115,15 @@ class AES:
         matrix_prime = []
         for column in matrix:
             matrix_prime.append(AES.mix_column(column))
+        return matrix_to_state(matrix_prime)
+
+    @staticmethod
+    def mix_columns_inverse(data: bytes) -> bytes:
+        """Inverted MixColumns transformation"""
+        matrix = state_to_matrix(data)
+        matrix_prime = []
+        for column in matrix:
+            matrix_prime.append(AES.mix_column_inverse(column))
         return matrix_to_state(matrix_prime)
 
     @staticmethod
@@ -117,6 +153,32 @@ class AES:
         data = AES.sub_bytes(data)
         data = AES.shift_rows(data)
         data = AES.add_round_key(keys[10], data)
+
+        return data
+
+    @staticmethod
+    def decrypt(ciphertext: bytes, key: bytes) -> bytes:
+        """AES decryption"""
+        assert len(ciphertext) == len(key) == 16, "AES-128 operates on 16 bytes"
+
+        # Widen the key to generate subkeys
+        keys = AES.key_expansion(key)
+
+        # Inverse final round
+        data = AES.add_round_key(keys[10], ciphertext)
+        data = AES.shift_rows_inverse(data)
+        data = AES.sub_bytes_inverse(data)
+
+
+        # Standard intermediate rounds, inverted
+        for i in range(9, 0, -1):
+            data = AES.add_round_key(keys[i], data)
+            data = AES.mix_columns_inverse(data)
+            data = AES.shift_rows_inverse(data)
+            data = AES.sub_bytes_inverse(data)
+
+        # Undo pre-whitening
+        data = fixed_xor(data, keys[0])
 
         return data
 

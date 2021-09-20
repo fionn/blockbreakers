@@ -110,5 +110,53 @@ class TestAES(unittest.TestCase):
         self.assertEqual(ciphertext,
                          bytes.fromhex("69c4e0d86a7b0430d8cdb78070b4c55a"))
 
+    def test_inverse_rot_word(self) -> None:
+        """Test inverting word rotation"""
+        message = b"0123"
+        for i in range(4):
+            message_prime = AES.rot_word(message, i)
+            self.assertEqual(message, AES.rot_word(message_prime, -1 * i))
+
+    def test_inverse_sub_bytes(self) -> None:
+        """Test SubBytes inverse"""
+        message = b"0123456789abcdef"
+        message_prime = AES.sub_bytes_inverse(message)
+        self.assertEqual(message, AES.sub_bytes(message_prime))
+
+    def test_shift_rows_inverse(self) -> None:
+        """Test ShiftRows inverse"""
+        message = b"0123456789abcdef"
+        message_prime = AES.shift_rows_inverse(message)
+        self.assertEqual(message, AES.shift_rows(message_prime))
+
+    # pylint: disable=invalid-name
+    def test_mix_column_inverse(self) -> None:
+        """Test inverting the MixColumn matrix on a single vector"""
+        a = b"1000"
+        a_prime = AES.mix_column_inverse(a)
+        self.assertEqual(a, AES.mix_column(a_prime))
+
+    def test_mix_columns_inverse(self) -> None:
+        """Test MixColumns inverse"""
+        message = b"0123456789abcdef"
+        message_prime = AES.mix_columns_inverse(message)
+        self.assertEqual(message, AES.mix_columns(message_prime))
+
+    def test_decryption(self) -> None:
+        """Test AES decryption"""
+        message = b"theblockbreakers"
+        key = bytes.fromhex("2b7e151628aed2a6abf7158809cf4f3c")
+        ciphertext = AES.encrypt(message, key)
+        message_prime = AES.decrypt(ciphertext, key)
+        self.assertEqual(message, message_prime)
+
+    def test_decryption_with_test_vector(self) -> None:
+        """Test AES decryption with test vector from appendix C.1"""
+        ciphertext = bytes.fromhex("69c4e0d86a7b0430d8cdb78070b4c55a")
+        key = bytes.fromhex("000102030405060708090a0b0c0d0e0f")
+        message = AES.decrypt(ciphertext, key)
+        self.assertEqual(message,
+                         bytes.fromhex("00112233445566778899aabbccddeeff"))
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
