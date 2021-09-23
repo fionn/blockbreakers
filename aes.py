@@ -7,20 +7,24 @@ from constants import SBOX_EN, RCON, X2, X3, X9, X11, X13, X14
 from utilities import fixed_xor, state_to_matrix, matrix_to_state, \
                       transpose, to_bytes
 
+
 def rot_word(word: bytes, shift: int = 1) -> bytes:
     """Circular shift"""
     assert len(word) == 4, "Input word must be 4 bytes"
     shift %= 4
     return word[shift:] + word[:shift]
 
+
 def sub_word(word: bytes) -> bytes:
     """Run word through the sbox"""
     assert len(word) == 4, "Input word must be 4 bytes"
     return bytes(SBOX_EN[b] for b in word)
 
+
 def rcon(i: int) -> list[bytes]:
     """Round constant for GF(2^8)"""
     return [bytes([RCON[i]]), b"\x00", b"\x00", b"\x00"]
+
 
 def key_expansion(key: bytes) -> list[bytes]:
     """Generate round keys"""
@@ -35,44 +39,49 @@ def key_expansion(key: bytes) -> list[bytes]:
         words.append(fixed_xor(word_prime, rcon_word))
         for current_round_index in range(1, 4):
             words.append(fixed_xor(words[index + current_round_index],
-                                    words[-1]))
+                                   words[-1]))
 
-    return [b"".join(words[4 * i : 4 * (i + 1)]) for i in range(11)]
+    return [b"".join(words[4 * i: 4 * (i + 1)]) for i in range(11)]
 
-def print_state(data: bytes) -> None:
+
+def print_state(state: bytes) -> None:
     """Print the internal state as a transposed matrix"""
     for i in range(4):
         for j in range(4):
-            print(bytes([data[i + 4 * j]]).hex(), end=" ")
+            print(bytes([state[i + 4 * j]]).hex(), end=" ")
         print()
 
-def sub_bytes(data: bytes) -> bytes:
+
+def sub_bytes(state: bytes) -> bytes:
     """SubBytes transformation"""
-    assert len(data) == 16
-    return bytes(SBOX_EN[b] for b in data)
+    assert len(state) == 16
+    return bytes(SBOX_EN[b] for b in state)
 
-def sub_bytes_inverse(data: bytes) -> bytes:
+
+def sub_bytes_inverse(state: bytes) -> bytes:
     """Invert the sbox"""
-    assert len(data) == 16
-    return bytes(SBOX_EN.index(b) for b in data)
+    assert len(state) == 16
+    return bytes(SBOX_EN.index(b) for b in state)
 
-def shift_rows(data: bytes) -> bytes:
+
+def shift_rows(state: bytes) -> bytes:
     """ShiftRows transformation"""
-    assert len(data) == 16
-    matrix_t = transpose(state_to_matrix(data))
+    assert len(state) == 16
+    matrix_t = transpose(state_to_matrix(state))
     for i in range(4):
         matrix_t[i] = rot_word(matrix_t[i], i)
     return matrix_to_state(transpose(matrix_t))
 
-def shift_rows_inverse(data: bytes) -> bytes:
+
+def shift_rows_inverse(state: bytes) -> bytes:
     """ShiftRows transformation"""
-    assert len(data) == 16
-    matrix_t = transpose(state_to_matrix(data))
+    assert len(state) == 16
+    matrix_t = transpose(state_to_matrix(state))
     for i in range(4):
         matrix_t[i] = rot_word(matrix_t[i], -1 * i)
     return matrix_to_state(transpose(matrix_t))
 
-# pylint: disable=invalid-name
+
 def mix_column(a: bytes) -> bytes:
     """Multiply the vector a by the MixColumn matrix over GF(2^8)"""
     result = [
@@ -83,7 +92,7 @@ def mix_column(a: bytes) -> bytes:
     ]
     return b"".join(result)
 
-# pylint: disable=invalid-name
+
 def mix_column_inverse(a: bytes) -> bytes:
     """Multiply the vector a by the inverse MixColumn matrix over GF(2^8)"""
     result = [
@@ -94,81 +103,79 @@ def mix_column_inverse(a: bytes) -> bytes:
     ]
     return b"".join(result)
 
-def mix_columns(data: bytes) -> bytes:
+
+def mix_columns(state: bytes) -> bytes:
     """MixColumns transformation"""
-    matrix = state_to_matrix(data)
+    matrix = state_to_matrix(state)
     matrix_prime = []
     for column in matrix:
         matrix_prime.append(mix_column(column))
     return matrix_to_state(matrix_prime)
 
-def mix_columns_inverse(data: bytes) -> bytes:
+
+def mix_columns_inverse(state: bytes) -> bytes:
     """Inverted MixColumns transformation"""
-    matrix = state_to_matrix(data)
+    matrix = state_to_matrix(state)
     matrix_prime = []
     for column in matrix:
         matrix_prime.append(mix_column_inverse(column))
     return matrix_to_state(matrix_prime)
 
-def add_round_key(key: bytes, data: bytes) -> bytes:
-    """Add a given round key to the state"""
-    return fixed_xor(key, data)
 
-def encrypt(message: bytes, key: bytes) -> bytes:
-    """encryption"""
+def add_round_key(key: bytes, state: bytes) -> bytes:
+    """Add a given round key to the state"""
+    return fixed_xor(key, state)
+
+
+def encrypt(key: bytes, message: bytes) -> bytes:
+    """AES Encryption"""
     assert len(message) == len(key) == 16, "128 operates on 16 bytes"
 
-    # Widen the key to generate subkeys
     keys = key_expansion(key)
 
-    # Pre-whitening
-    data = fixed_xor(message, keys[0])
+    state = fixed_xor(message, keys[0])
 
-    # Standard intermediate rounds
     for i in range(1, 10):
-        data = sub_bytes(data)
-        data = shift_rows(data)
-        data = mix_columns(data)
-        data = add_round_key(keys[i], data)
+        state = sub_bytes(state)
+        state = shift_rows(state)
+        state = mix_columns(state)
+        state = add_round_key(keys[i], state)
 
-    # Final round
-    data = sub_bytes(data)
-    data = shift_rows(data)
-    data = add_round_key(keys[10], data)
+    state = sub_bytes(state)
+    state = shift_rows(state)
+    state = add_round_key(keys[10], state)
 
-    return data
+    return state
 
-def decrypt(ciphertext: bytes, key: bytes) -> bytes:
-    """decryption"""
+
+def decrypt(key: bytes, ciphertext: bytes) -> bytes:
+    """AES Decryption"""
     assert len(ciphertext) == len(key) == 16, "128 operates on 16 bytes"
 
-    # Widen the key to generate subkeys
     keys = key_expansion(key)
 
-    # Inverse final round
-    data = add_round_key(keys[10], ciphertext)
-    data = shift_rows_inverse(data)
-    data = sub_bytes_inverse(data)
+    state = add_round_key(keys[10], ciphertext)
+    state = shift_rows_inverse(state)
+    state = sub_bytes_inverse(state)
 
-
-    # Standard intermediate rounds, inverted
     for i in range(9, 0, -1):
-        data = add_round_key(keys[i], data)
-        data = mix_columns_inverse(data)
-        data = shift_rows_inverse(data)
-        data = sub_bytes_inverse(data)
+        state = add_round_key(keys[i], state)
+        state = mix_columns_inverse(state)
+        state = shift_rows_inverse(state)
+        state = sub_bytes_inverse(state)
 
-    # Undo pre-whitening
-    data = fixed_xor(data, keys[0])
+    state = fixed_xor(state, keys[0])
 
-    return data
+    return state
+
 
 def main() -> None:
     """Entry point"""
     message = b"attack at dawn!!"
     key = b"yellow submarine"
-    ciphertext = encrypt(message, key)
+    ciphertext = encrypt(key=key, message=message)
     print_state(ciphertext)
+
 
 if __name__ == "__main__":
     main()

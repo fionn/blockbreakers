@@ -56,49 +56,49 @@ class TestAES(unittest.TestCase):
 
     def test_sub_bytes(self) -> None:
         """Test the SubBytes transformation"""
-        data = bytes(range(16))
-        data_prime = aes.sub_bytes(data)
-        self.assertEqual(data_prime,
+        state = bytes(range(16))
+        state_prime = aes.sub_bytes(state)
+        self.assertEqual(state_prime,
                          bytes.fromhex("637c777bf26b6fc53001672bfed7ab76"))
 
     def test_shift_rows(self) -> None:
         """Test the ShiftRows transformation"""
-        data = bytes.fromhex("637c777bf26b6fc53001672bfed7ab76")
-        data_prime = aes.shift_rows(data)
-        self.assertEqual(data_prime,
+        state = bytes.fromhex("637c777bf26b6fc53001672bfed7ab76")
+        state_prime = aes.shift_rows(state)
+        self.assertEqual(state_prime,
                          bytes.fromhex("636b6776f201ab7b30d777c5fe7c6f2b"))
 
     def test_mix_columns(self) -> None:
         """Test the MixColumns transformation"""
-        data = bytes.fromhex("636b6776f201ab7b30d777c5fe7c6f2b")
-        data_prime = aes.mix_columns(data)
-        self.assertEqual(data_prime,
+        state = bytes.fromhex("636b6776f201ab7b30d777c5fe7c6f2b")
+        state_prime = aes.mix_columns(state)
+        self.assertEqual(state_prime,
                          bytes.fromhex("6a6a5c452c6d3351b0d95d61279c215c"))
 
     def test_add_round_key(self) -> None:
         """Test adding the round key"""
-        data = bytes.fromhex("6a6a5c452c6d3351b0d95d61279c215c")
+        state = bytes.fromhex("6a6a5c452c6d3351b0d95d61279c215c")
         key = bytes.fromhex("d6aa74fdd2af72fadaa678f1d6ab76fe")
-        data_prime = aes.add_round_key(key, data)
-        self.assertEqual(data_prime,
+        state_prime = aes.add_round_key(key, state)
+        self.assertEqual(state_prime,
                          bytes.fromhex("bcc028b8fec241ab6a7f2590f13757a2"))
 
     def test_round(self) -> None:
         """End to end test for all the round functions"""
-        data = bytes(range(16))
+        state = bytes(range(16))
         key = bytes.fromhex("d6aa74fdd2af72fadaa678f1d6ab76fe")
-        data = aes.sub_bytes(data)
-        data = aes.shift_rows(data)
-        data = aes.mix_columns(data)
-        data = aes.add_round_key(key, data)
-        self.assertEqual(data,
+        state = aes.sub_bytes(state)
+        state = aes.shift_rows(state)
+        state = aes.mix_columns(state)
+        state = aes.add_round_key(key, state)
+        self.assertEqual(state,
                          bytes.fromhex("bcc028b8fec241ab6a7f2590f13757a2"))
 
     def test_encryption(self) -> None:
         """Test AES encryption"""
         message = b"theblockbreakers"
         key = bytes.fromhex("2b7e151628aed2a6abf7158809cf4f3c")
-        ciphertext = aes.encrypt(message, key)
+        ciphertext = aes.encrypt(key=key, message=message)
         self.assertEqual(ciphertext,
                          bytes.fromhex("c69f25d0025a9ef32393f63e2f05b747"))
 
@@ -106,7 +106,7 @@ class TestAES(unittest.TestCase):
         """Test AES encryption with test vector from appendix C.1"""
         message = bytes.fromhex("00112233445566778899aabbccddeeff")
         key = bytes.fromhex("000102030405060708090a0b0c0d0e0f")
-        ciphertext = aes.encrypt(message, key)
+        ciphertext = aes.encrypt(key=key, message=message)
         self.assertEqual(ciphertext,
                          bytes.fromhex("69c4e0d86a7b0430d8cdb78070b4c55a"))
 
@@ -129,7 +129,6 @@ class TestAES(unittest.TestCase):
         message_prime = aes.shift_rows_inverse(message)
         self.assertEqual(message, aes.shift_rows(message_prime))
 
-    # pylint: disable=invalid-name
     def test_mix_column_inverse(self) -> None:
         """Test inverting the MixColumn matrix on a single vector"""
         a = b"1000"
@@ -146,15 +145,15 @@ class TestAES(unittest.TestCase):
         """Test AES decryption"""
         message = b"theblockbreakers"
         key = bytes.fromhex("2b7e151628aed2a6abf7158809cf4f3c")
-        ciphertext = aes.encrypt(message, key)
-        message_prime = aes.decrypt(ciphertext, key)
+        ciphertext = aes.encrypt(key=key, message=message)
+        message_prime = aes.decrypt(key=key, ciphertext=ciphertext)
         self.assertEqual(message, message_prime)
 
     def test_decryption_with_test_vector(self) -> None:
         """Test AES decryption with test vector from appendix C.1"""
         ciphertext = bytes.fromhex("69c4e0d86a7b0430d8cdb78070b4c55a")
         key = bytes.fromhex("000102030405060708090a0b0c0d0e0f")
-        message = aes.decrypt(ciphertext, key)
+        message = aes.decrypt(key, ciphertext=ciphertext)
         self.assertEqual(message,
                          bytes.fromhex("00112233445566778899aabbccddeeff"))
 
