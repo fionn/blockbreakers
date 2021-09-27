@@ -157,5 +157,13 @@ class TestAES(unittest.TestCase):
         self.assertEqual(message,
                          bytes.fromhex("00112233445566778899aabbccddeeff"))
 
+    def test_variable_rounds(self) -> None:
+        """Test mini-AES with variable number of rounds"""
+        message = b"attack at dawn!!"
+        key = b"yellow submarine"
+        for i in range(14):
+            ciphertext = aes.encrypt(key, message, rounds=i)
+            self.assertEqual(message, aes.decrypt(key, ciphertext, rounds=i))
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

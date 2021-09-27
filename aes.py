@@ -26,11 +26,11 @@ def rcon(i: int) -> list[bytes]:
     return [bytes([RCON[i]]), b"\x00", b"\x00", b"\x00"]
 
 
-def key_expansion(key: bytes) -> list[bytes]:
+def key_expansion(key: bytes, rounds: int = 10) -> list[bytes]:
     """Generate round keys"""
     words = [key[i:i + 4] for i in range(0, 16, 4)]
 
-    for round_number in range(1, 11):
+    for round_number in range(1, rounds + 1):
         index = (round_number - 1) * 4
         word = words[index + 3]
         rcon_word = b"".join(rcon(round_number))
@@ -41,7 +41,7 @@ def key_expansion(key: bytes) -> list[bytes]:
             words.append(fixed_xor(words[index + current_round_index],
                                    words[-1]))
 
-    return [b"".join(words[4 * i: 4 * (i + 1)]) for i in range(11)]
+    return [b"".join(words[4 * i: 4 * (i + 1)]) for i in range(rounds + 1)]
 
 
 def print_state(state: bytes) -> None:
@@ -127,15 +127,15 @@ def add_round_key(key: bytes, state: bytes) -> bytes:
     return fixed_xor(key, state)
 
 
-def encrypt(key: bytes, message: bytes) -> bytes:
+def encrypt(key: bytes, message: bytes, rounds: int = 10) -> bytes:
     """AES Encryption"""
     assert len(message) == len(key) == 16, "128 operates on 16 bytes"
 
-    keys = key_expansion(key)
+    keys = key_expansion(key, rounds)
 
     state = fixed_xor(message, keys[0])
 
-    for i in range(1, 10):
+    for i in range(1, rounds):
         state = sub_bytes(state)
         state = shift_rows(state)
         state = mix_columns(state)
@@ -143,22 +143,22 @@ def encrypt(key: bytes, message: bytes) -> bytes:
 
     state = sub_bytes(state)
     state = shift_rows(state)
-    state = add_round_key(keys[10], state)
+    state = add_round_key(keys[rounds], state)
 
     return state
 
 
-def decrypt(key: bytes, ciphertext: bytes) -> bytes:
+def decrypt(key: bytes, ciphertext: bytes, rounds: int = 10) -> bytes:
     """AES Decryption"""
     assert len(ciphertext) == len(key) == 16, "128 operates on 16 bytes"
 
-    keys = key_expansion(key)
+    keys = key_expansion(key, rounds)
 
-    state = add_round_key(keys[10], ciphertext)
+    state = add_round_key(keys[rounds], ciphertext)
     state = shift_rows_inverse(state)
     state = sub_bytes_inverse(state)
 
-    for i in range(9, 0, -1):
+    for i in range(rounds - 1, 0, -1):
         state = add_round_key(keys[i], state)
         state = mix_columns_inverse(state)
         state = shift_rows_inverse(state)
