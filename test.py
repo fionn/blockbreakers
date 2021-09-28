@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Unit tests"""
 
+import io
 import unittest
+from contextlib import redirect_stdout
 
 import aes
 import utilities
@@ -26,6 +28,7 @@ class TestUtilities(unittest.TestCase):
             ))
 
 
+# pylint: disable=too-many-public-methods
 class TestAES(unittest.TestCase):
     """Tests for AES"""
 
@@ -74,6 +77,17 @@ class TestAES(unittest.TestCase):
                        ]
         subkeys = aes.key_expansion(bytes.fromhex(test_subkeys[0]))
         self.assertEqual([key.hex() for key in subkeys], test_subkeys)
+
+    def test_print_state(self) -> None:
+        """Hack test on the state representation"""
+        state = bytes(range(16))
+        output_buffer = io.StringIO()
+        with redirect_stdout(output_buffer):
+            aes.print_state(state)
+        state_repr = output_buffer.getvalue().strip()
+        self.assertEqual(len(state_repr), 50)
+        self.assertEqual(state_repr[:11], "00 04 08 0c")
+        self.assertEqual(state_repr[-2::], "0f")
 
     def test_sub_bytes(self) -> None:
         """Test the SubBytes transformation"""
