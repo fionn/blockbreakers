@@ -1,0 +1,30 @@
+name: CI
+
+on: push
+
+jobs:
+  test:
+    name: Lint and Test
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.9
+
+    - name: Install Python dependencies
+      run: pip install --progress-bar off pylint mypy
+
+    - name: Lint
+      run: make lint
+
+    - name: Typecheck
+      run: make typecheck
+
+    - name: Test
+      run: python -m unittest -v --locals --buffer
