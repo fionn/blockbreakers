@@ -4,6 +4,27 @@
 import unittest
 
 import aes
+import utilities
+
+
+class TestUtilities(unittest.TestCase):
+    """Tests for helper functions"""
+
+    def test_index_to_coordinate(self) -> None:
+        """Test mapping byte indeces to coordinates"""
+        self.assertEqual(utilities.index_to_coordinate(5), (1, 1))
+
+    def test_coordinate_to_index(self) -> None:
+        """Test mapping coordinates to byte indices"""
+        self.assertEqual(utilities.coordinate_to_index((2, 3)), 14)
+
+    def test_coordinate_index_inverse(self) -> None:
+        """Test that index and coordinate maps are inverses"""
+        for i in range(16):
+            self.assertEqual(i, utilities.coordinate_to_index(
+                utilities.index_to_coordinate(i)
+            ))
+
 
 class TestAES(unittest.TestCase):
     """Tests for AES"""
