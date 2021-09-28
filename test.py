@@ -3,9 +3,11 @@
 
 import io
 import unittest
+from functools import reduce
 from contextlib import redirect_stdout
 
 import aes
+import square
 import utilities
 
 
@@ -199,6 +201,76 @@ class TestAES(unittest.TestCase):
         for i in range(14):
             ciphertext = aes.encrypt(key, message, rounds=i)
             self.assertEqual(message, aes.decrypt(key, ciphertext, rounds=i))
+
+
+class TestSaturationAttack(unittest.TestCase):
+    """Test saturation attack on mini-AES"""
+
+    KEY = b"\xaa" + bytes(15)
+
+    def test_lambda_set(self) -> None:
+        """Test that Λ-set generation meets specification"""
+        lambda_set = square.gen_lambda_set(bytes(15))
+        self.assertEqual(len(lambda_set), 256)
+        for i in range(256):
+            self.assertEqual(lambda_set[i][0], i)
+            self.assertEqual(lambda_set[i][1:], bytes(15))
+
+    def test_3_round_balance_property(self) -> None:
+        """Test that the balance property holds"""
+        encrypted_lambda_set = square.setup(self.KEY, rounds=3)
+        for i in range(16):
+            slice_i = [x[i].to_bytes(1, "big") for x in encrypted_lambda_set]
+            integral = reduce(utilities.fixed_xor, slice_i)
+            self.assertEqual(integral, b"\x00")
+
+    def test_reverse_state(self) -> None:
+        """Impossible to unit test reversing the state"""
+        encrypted_lambda_set = square.setup(self.KEY, rounds=3)
+        index = 5
+        key_byte = b"\x00"
+        reversed_state = square.reverse_state(key_byte, index, encrypted_lambda_set)
+        self.assertEqual(len(reversed_state), 256)
+
+    def test_trivial_check_key_guess(self) -> None:
+        """Test the balance ckeck with a 3-round encrypted Λ-set"""
+        encrypted_lambda_set = square.setup(square.KEY, rounds=3)
+        for i in range(16):
+            self.assertTrue(square.check_key_guess(encrypted_lambda_set, i))
+
+    def test_reverse_state_validate_guess(self) -> None:
+        """Non-trivial test of reversed state key active byte guess"""
+        encrypted_lambda_set = square.setup(self.KEY, rounds=3)
+        index = 5
+        round_keys = aes.key_expansion(square.KEY, rounds=4)
+        key_byte = round_keys[-1][index].to_bytes(1, "big")
+        reversed_state = square.reverse_state(key_byte, index, encrypted_lambda_set)
+        self.assertTrue(square.check_key_guess(reversed_state, index))
+
+    def test_guess_key_index_byte(self) -> None:
+        """Guess a byte of the key"""
+        encrypted_lambda_set = square.setup(self.KEY, rounds=3)
+        index = 5
+        round_keys = aes.key_expansion(square.KEY, rounds=4)
+        key_byte = round_keys[-1][index].to_bytes(1, "big")
+        guesses = square.guess_key_index_byte(index, encrypted_lambda_set)
+        self.assertIn(key_byte, guesses)
+
+    def test_reduce_guesses(self) -> None:
+        """Given a fake round key with one byte uncertain, recover the key"""
+        round_key = aes.key_expansion(square.KEY, square.ROUNDS)[-1]
+        guessed_key: list[set[bytes]] = [{x.to_bytes(1, "big")} for x in round_key]
+        guessed_key[5].update({b"\x00", b"\xff"})
+        key_prime = square.reduce_guesses(guessed_key)
+        self.assertEqual(round_key, key_prime)
+
+    @unittest.skip("long test")
+    def test_square_attack(self) -> None:
+        """Attack mini-AES with the saturation attack"""
+        round_keys = aes.key_expansion(square.KEY, square.ROUNDS)
+        last_round_key = square.attack()
+        self.assertEqual(last_round_key, round_keys[-1])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
