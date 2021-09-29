@@ -265,11 +265,23 @@ class TestSaturationAttack(unittest.TestCase):
         self.assertEqual(round_key, key_prime)
 
     @unittest.skip("long test")
-    def test_square_attack(self) -> None:
-        """Attack mini-AES with the saturation attack"""
+    def test_square_recover_last_round_key(self) -> None:
+        """Recover the last round key with the saturation attack"""
         round_keys = aes.key_expansion(square.KEY, square.ROUNDS)
-        last_round_key = square.attack()
+        last_round_key = square.recover_last_round_key()
         self.assertEqual(last_round_key, round_keys[-1])
+
+    def test_key_contraction(self) -> None:
+        """Given a round key, get the original key"""
+        round_keys = aes.key_expansion(square.KEY, square.ROUNDS)
+        for i in range(1, square.ROUNDS + 1):
+            key = square.key_contraction(round_keys[i], i)
+            self.assertEqual(key, square.KEY)
+
+    @unittest.skip("long test")
+    def test_square_attack(self) -> None:
+        """End to end Square attack on mini-AES"""
+        self.assertEqual(square.attack(), square.KEY)
 
 
 if __name__ == "__main__":

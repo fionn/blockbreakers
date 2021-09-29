@@ -81,7 +81,7 @@ def reduce_guesses(guessed_key: list[set[bytes]]) -> bytes:
     return key
 
 
-def attack() -> bytes:
+def recover_last_round_key() -> bytes:
     """Recover the last round key in mini-AES via the Square attack"""
     encrypted_lambda_set = setup(KEY, ROUNDS)
     guessed_key: list[set[bytes]] = [set() for _ in range(16)]
@@ -93,15 +93,39 @@ def attack() -> bytes:
     return reduce_guesses(guessed_key)
 
 
+def key_contraction(key: bytes, rounds: int = 10) -> bytes:
+    """Given a round key after a specific number of rounds,
+       invert aes.key_expansion to recover the original key"""
+    # Reverse word order so we index them backwards
+    words = [key[i:i + 4] for i in range(0, 16, 4)][::-1]
+
+    # But use the real, non-reversed round number
+    for round_number in range(rounds, 0, -1):
+        # So calculate the reverse base index instead
+        i_0 = (rounds - round_number) * 4
+
+        for i in range(3):
+            words.append(utilities.fixed_xor(words[i_0 + i],
+                                             words[i_0 + i + 1]))
+
+        w_prime = aes.sub_word(aes.rot_word(words[i_0 + 4]))
+        w_prime = utilities.fixed_xor(w_prime, aes.rcon(round_number))
+        words.append(utilities.fixed_xor(w_prime, words[i_0 + 3]))
+
+    return b"".join(words[::-1][:4])
+
+
+def attack() -> bytes:
+    """Recover the key in mini-AES via the Square attack"""
+    last_round_key = recover_last_round_key()
+    return key_contraction(last_round_key, ROUNDS)
+
+
 def main() -> None:
     """Entry point"""
-    round_keys = aes.key_expansion(KEY, ROUNDS)
-
-    last_round_key = attack()
-
-    print(last_round_key)
-    print(round_keys[-1])
-    assert last_round_key == round_keys[-1]
+    key = attack()
+    assert key == KEY
+    print(bytes.hex(key))
 
 
 if __name__ == "__main__":
