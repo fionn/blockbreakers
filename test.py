@@ -58,10 +58,10 @@ class TestAES(unittest.TestCase):
 
     def test_rcon(self) -> None:
         """Test rcon against test vectors"""
-        self.assertEqual(aes.rcon(1), [b"\x01", b"\x00", b"\x00", b"\x00"])
-        self.assertEqual(aes.rcon(2), [b"\x02", b"\x00", b"\x00", b"\x00"])
-        self.assertEqual(aes.rcon(3), [b"\x04", b"\x00", b"\x00", b"\x00"])
-        self.assertEqual(aes.rcon(4), [b"\x08", b"\x00", b"\x00", b"\x00"])
+        self.assertEqual(aes.rcon(1), b"\x01\x00\x00\x00")
+        self.assertEqual(aes.rcon(2), b"\x02\x00\x00\x00")
+        self.assertEqual(aes.rcon(3), b"\x04\x00\x00\x00")
+        self.assertEqual(aes.rcon(4), b"\x08\x00\x00\x00")
 
     def test_key_expansion(self) -> None:
         """Test key expansion"""

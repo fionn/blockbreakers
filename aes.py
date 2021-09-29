@@ -17,13 +17,12 @@ def rot_word(word: bytes, shift: int = 1) -> bytes:
 
 def sub_word(word: bytes) -> bytes:
     """Run word through the sbox"""
-    assert len(word) == 4, "Input word must be 4 bytes"
     return bytes(SBOX_EN[b] for b in word)
 
 
-def rcon(i: int) -> list[bytes]:
+def rcon(i: int) -> bytes:
     """Round constant for GF(2^8)"""
-    return [bytes([RCON[i]]), b"\x00", b"\x00", b"\x00"]
+    return bytes([RCON[i]]) + bytes(3)
 
 
 def key_expansion(key: bytes, rounds: int = 10) -> list[bytes]:
@@ -31,14 +30,13 @@ def key_expansion(key: bytes, rounds: int = 10) -> list[bytes]:
     words = [key[i:i + 4] for i in range(0, 16, 4)]
 
     for round_number in range(1, rounds + 1):
-        index = (round_number - 1) * 4
-        word = words[index + 3]
-        rcon_word = b"".join(rcon(round_number))
+        i_0 = (round_number - 1) * 4
+        word = words[i_0 + 3]
         word_prime = (fixed_xor(sub_word(rot_word(word)),
-                                words[index]))
-        words.append(fixed_xor(word_prime, rcon_word))
+                                words[i_0]))
+        words.append(fixed_xor(word_prime, rcon(round_number)))
         for current_round_index in range(1, 4):
-            words.append(fixed_xor(words[index + current_round_index],
+            words.append(fixed_xor(words[i_0 + current_round_index],
                                    words[-1]))
 
     return [b"".join(words[4 * i: 4 * (i + 1)]) for i in range(rounds + 1)]
@@ -55,7 +53,7 @@ def print_state(state: bytes) -> None:
 def sub_bytes(state: bytes) -> bytes:
     """SubBytes transformation"""
     assert len(state) == 16
-    return bytes(SBOX_EN[b] for b in state)
+    return sub_word(state)
 
 
 def sub_bytes_inverse(state: bytes) -> bytes:
