@@ -1,4 +1,4 @@
-SRC = aes.py constants.py
+SRC = aes.py constants.py square.py
 TEST = test.py
 
 tags: $(SRC) $(TEST)
@@ -20,7 +20,7 @@ lint:
 
 .PHONY: typecheck
 typecheck:
-	@mypy $(SRC)
+	@mypy $(SRC) $(TEST)
 
 .PHONY: clean
 clean:
