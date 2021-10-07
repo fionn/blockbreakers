@@ -9,7 +9,7 @@ test:
 	@python -m unittest
 
 coverage: $(SRC) $(TEST)
-	@coverage run --source=. --branch --concurrency=thread test.py
+	@coverage run --source=. --branch --concurrency=thread $(TEST)
 	@coverage report -m
 	@coverage html -d ./coverage
 	@coverage erase
