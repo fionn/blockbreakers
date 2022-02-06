@@ -1,4 +1,4 @@
-SRC = aes.py constants.py square.py
+SRC = aes.py constants.py square.py utilities.py
 TEST = test.py
 
 tags: $(SRC) $(TEST)

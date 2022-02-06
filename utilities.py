@@ -3,8 +3,7 @@
 
 def fixed_xor(a: bytes, b: bytes) -> bytes:
     """xor two byte strings"""
-    assert len(a) == len(b), "Arguments must be of equal length"
-    return bytes(i ^ j for (i, j) in zip(a, b))
+    return bytes(i ^ j for (i, j) in zip(a, b, strict=True))
 
 
 def state_to_matrix(data: bytes) -> list[bytes]:
@@ -20,7 +19,7 @@ def matrix_to_state(matrix: list[bytes]) -> bytes:
 
 def transpose(matrix: list[bytes]) -> list[bytes]:
     """Matrix transposition"""
-    return list(map(bytes, zip(*matrix)))
+    return list(map(bytes, zip(*matrix, strict=True)))
 
 
 def to_bytes(x: int) -> bytes:
