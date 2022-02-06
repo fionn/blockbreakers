@@ -15,7 +15,7 @@ class TestUtilities(unittest.TestCase):
     """Tests for helper functions"""
 
     def test_index_to_coordinate(self) -> None:
-        """Test mapping byte indeces to coordinates"""
+        """Test mapping byte indices to coordinates"""
         self.assertEqual(utilities.index_to_coordinate(5), (1, 1))
 
     def test_coordinate_to_index(self) -> None:
